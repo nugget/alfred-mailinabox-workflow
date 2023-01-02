@@ -8,8 +8,10 @@ import json
 import random
 from urllib.parse import urlparse
 
-import miab
+import alfred
 from macnugget import log
+
+workflow = alfred.Config()
 
 
 def generate_item(username, domain):
@@ -47,9 +49,7 @@ def generate_item(username, domain):
 
     i["title"] = email
     i["arg"] = email
-    i["subtitle"] = (
-        "Create alias " + username + " on the " + miab.server_name(email) + " server"
-    )
+    i["subtitle"] = f"Create alias {username} on {workflow.server_name(email)}"
 
     i["mods"]["cmd"]["arg"] = username + random_number() + "@" + domain
     i["mods"]["cmd"]["subtitle"] = (
@@ -57,7 +57,7 @@ def generate_item(username, domain):
         + username
         + random_number()
         + " on the "
-        + miab.server_name(email)
+        + workflow.server_name(email)
         + " server"
     )
 
@@ -106,7 +106,8 @@ def main(*args):
     """Emit search result items for Alfred based on user input in args."""
     query = args[0] if args[0:] else ""
     query_username, query_domain = parse_query(query)
-    domain = miab.match_best_domain(query_domain)
+
+    domain = workflow.match_best_domain(query_domain)
 
     items = []
     if len(query_username) > 0:

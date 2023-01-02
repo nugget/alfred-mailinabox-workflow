@@ -14,7 +14,7 @@ def get_entry(uuid):
     command_line = ["/usr/bin/env", "op", "item", "get", uuid]
     log("running 1Password CLI:", command_line)
 
-    result = subprocess.run(command_line, capture_output=True, text=True)
+    result = subprocess.run(command_line, capture_output=True, text=True, check=True)
 
     if result.stderr != "":
         fatal("1Password error\n", result.stdout, "\n", result.stderr)

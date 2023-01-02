@@ -7,17 +7,7 @@ from io import BytesIO
 import pycurl
 import certifi
 
-from macnugget import log, fatal, load_globals, success_marker
-
-
-class Box:
-    """Generic container to hold arbitrary global variables."""
-
-    pass
-
-
-_m = Box()
-_m.servers, _m.targets, _m.domains = load_globals()
+from macnugget import log, fatal, success_marker
 
 
 class Server:
@@ -28,7 +18,6 @@ class Server:
         self.name = ""
         self.url = ""
         self.domains = ""
-        self.onepassword_uuid = ""
 
         self.debug_login = False
         self.debug_upsert = False
@@ -56,44 +45,18 @@ class Server:
     def dumps(self, private=False):
         """Return debugging structure suitable for text output."""
         outbuf = {}
+        outbuf["name"] = self.name
         outbuf["url"] = self.url
         outbuf["domains"] = self.domains
-        outbuf["onepassword_uuid"] = self.onepassword_uuid
 
         if private:
-            outbuf["private"] = True
             outbuf["_api_key"] = self._api_key
 
         return json.dumps(outbuf)
 
-    def get_server_matching_email(self, email):
-        """Select MiaB server which handles provided email address."""
-        domain = email.split("@")[-1]
-        for s in _m.servers.sections():
-            for d in _m.servers[s]["domains"].split(","):
-                if d.strip() == domain:
-                    self.name = s
-                    self.url = _m.servers[s].get("url")
-                    self.domains = _m.servers[s].get("domains")
-                    self._api_key = _m.servers[s].get("api_key")
-                    self.onepassword_uuid = _m.servers[s].get("onepassword_uuid")
-                    log(
-                        "found server",
-                        s,
-                        _m.servers[s],
-                        self._api_key,
-                        self.onepassword_uuid,
-                    )
-                    return
-
-        fatal("Cannot find a server to handle %s addresses" % (domain))
-
-    def login(self, username, password):
+    def login(self, url, username, password):
         """Log in to MiaB server using API and obtain a session api_key."""
         log("Starting login process")
-
-        if self.url == "":
-            fatal("No Mail-in-a-Box server URL found for login")
 
         if self._api_key != "" and self._api_key is not None:
             # If we have an api_key then we're already logged in
@@ -111,7 +74,7 @@ class Server:
         c.setopt(c.HTTPHEADER, custom_headers)
 
         c.setopt(c.VERBOSE, self.debug_login)
-        c.setopt(c.URL, self.url + "/login")
+        c.setopt(c.URL, url + "/login")
         c.setopt(c.WRITEDATA, buffer)
         c.setopt(c.CAINFO, certifi.where())
 
@@ -127,6 +90,9 @@ class Server:
         self._api_key = response.get("api_key", "")
         if self._api_key == "":
             fatal(f'Login failure: {response["reason"]}')
+
+        # Successful login, let's retain the URL for future activity
+        self.url = url
 
         if self.debug_login:
             log("HTTP Code", c.getinfo(c.HTTP_CODE))
@@ -188,42 +154,6 @@ class Server:
             print(f"{alias.strip()} {response_text} {success_marker()}")
 
         return
-
-
-def server_name(query):
-    """Return human-readable name (dict key) of the server for the supplied domain."""
-    domain = query.split("@")[-1]
-    for s in _m.servers.sections():
-        for d in _m.servers[s]["domains"].split(","):
-            if d.strip() == domain:
-                return s
-
-    return ""
-
-
-def match_best_domain(query_domain):
-    """Choose the best domain name for alias from empty or partial search from user."""
-    domain = _m.domains[0] if _m.domains[0:] else "example.org"
-    if len(query_domain) > 0:
-        for d in _m.domains:
-            if d.find(query_domain) == 0:
-                return d
-
-    return domain
-
-
-def match_best_target(query_domain):
-    """Choose the appropriate target email (forwards_to) for an alias."""
-    if len(query_domain) > 0:
-        for t in _m.targets:
-            log("mbt target test", t)
-            if t.find(query_domain) > 0:
-                log("found!", t.find(query_domain))
-                return t
-
-            log("not found", t.find(query_domain))
-
-    fatal(f"No target email addresses for domain '{query_domain}'")
 
 
 def encode_basic_auth_header(username, password):

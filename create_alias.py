@@ -3,23 +3,30 @@
 """Script creates/updates an alias on a Mail-in-a-Box server."""
 import sys
 
+import alfred
 import miab
 import onepassword
 from macnugget import log
 
 
+workflow = alfred.Config()
+
+
 def main(*args):
     """Create/Update an alias on server."""
-    alias = args[1] if args[1:] else ""
+    alias = args[0] if args[0:] else ""
     _, alias_domain = alias.split("@")
-    target = miab.match_best_target(alias_domain)
+
+    server_config = workflow.server_for_email_address(alias)
+    log(server_config)
+    target = workflow.match_best_target(alias_domain)
 
     server = miab.Server()
-    server.get_server_matching_email(alias)
+    workflow.server_for_email_address(alias)
 
-    username, password = onepassword.get_entry(server.onepassword_uuid)
+    username, password = onepassword.get_entry(server_config["onepassword_uuid"])
     log("Retrieved credentials from 1Password", username, password)
-    server.login(username, password)
+    server.login(server_config["url"], username, password)
 
     server.upsert_alias(alias, target)
 

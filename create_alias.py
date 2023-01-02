@@ -18,14 +18,13 @@ def main(*args):
     _, alias_domain = alias.split("@")
 
     server_config = workflow.server_for_email_address(alias)
-    log(server_config)
     target = workflow.match_best_target(alias_domain)
 
     server = miab.Server()
     workflow.server_for_email_address(alias)
 
     username, password = onepassword.get_entry(server_config["onepassword_uuid"])
-    log("Retrieved credentials from 1Password", username, password)
+    log("Retrieved credentials from 1Password")
     server.login(server_config["url"], username, password)
 
     server.upsert_alias(alias, target)

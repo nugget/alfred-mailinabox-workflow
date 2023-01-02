@@ -66,7 +66,6 @@ class Server:
         buffer = BytesIO()
 
         c = self.Curl()
-        log("debug login?", self.debug_login, c)
 
         authorization_header = encode_basic_auth_header(username, password)
         log("Encoded authorization header", authorization_header)
@@ -84,8 +83,6 @@ class Server:
 
         response = json.loads(buffer.getvalue())
 
-        log("login response", json.dumps(response))
-
         self._username = username
         self._api_key = response.get("api_key", "")
         if self._api_key == "":
@@ -96,13 +93,13 @@ class Server:
 
         if self.debug_login:
             log("HTTP Code", c.getinfo(c.HTTP_CODE))
-            log(response)
+            log(json.dumps(response))
 
         return response
 
     def upsert_alias(self, alias, forwards_to):
         """Create or update an alias on the MiaB server."""
-        log("Starting alias upsert")
+        log(f"Creating alias {alias} -> {forwards_to})")
 
         if self.url == "":
             fatal("No Mail-in-a-Box server URL found for login")
@@ -122,15 +119,18 @@ class Server:
 
         postfields = urlencode(post_data)
 
-        log("postfields", postfields)
+        if self.debug_upsert:
+            log("postfields", postfields)
 
         buffer = BytesIO()
 
         c = self.Curl()
-        log("debug upsert?", self.debug_upsert, c)
 
         authorization_header = encode_basic_auth_header(self._username, self._api_key)
-        log("Encoded authorization header", authorization_header)
+
+        if self.debug_upsert:
+            log("Encoded authorization header", authorization_header)
+
         custom_headers = ["authorization: " + authorization_header]
         c.setopt(c.HTTPHEADER, custom_headers)
 
@@ -141,7 +141,8 @@ class Server:
 
         c.setopt(c.POSTFIELDS, postfields)
 
-        log("My post fields are", postfields, post_data)
+        if self.debug_upsert:
+            log("My post fields are", postfields, post_data)
 
         c.perform()
 

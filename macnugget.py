@@ -13,17 +13,17 @@ def success_marker():
 
 def load_globals():
     """Parse and process the environment variables set by Alfredapp."""
-    servers = configparser.ConfigParser()
-    servers.read_string(os.environ.get("MIAB_SERVERS", ""))
+    miab_servers = configparser.ConfigParser()
+    miab_servers.read_string(os.environ.get("MIAB_SERVERS", ""))
     targets = os.environ.get("MIAB_TARGETS", "").strip().split(",")
 
     domains = []
-    for s in servers.sections():
-        for d in servers[s]["domains"].split(","):
-            domains.append(d.strip())
+    for server in miab_servers.sections():
+        for domain in miab_servers[server]["domains"].split(","):
+            domains.append(domain.strip())
 
     log(json.dumps(domains))
-    return servers, targets, domains
+    return miab_servers, targets, domains
 
 
 def log(*args, **kwargs):
@@ -34,4 +34,4 @@ def log(*args, **kwargs):
 def fatal(*args, **kwargs):
     """Emit a log line for Alfredapp and then exit the script with an errorcode."""
     print(*args, **kwargs)
-    exit(-1)
+    sys.exit(-1)

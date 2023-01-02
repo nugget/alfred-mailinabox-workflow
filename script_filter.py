@@ -9,20 +9,7 @@ import random
 from urllib.parse import urlparse
 
 import miab
-from macnugget import log, load_globals
-
-
-class Box:
-    """Generic container to hold arbitrary global variables."""
-
-    pass
-
-
-_m = Box()
-_m.api_key = ""
-_m.servers, _m.targets, _m.domains = load_globals()
-_m.current_url_string = os.environ.get("CURRENT_URL", "")
-_m.current_url = urlparse(_m.current_url_string)
+from macnugget import log
 
 
 def generate_item(username, domain):
@@ -42,6 +29,7 @@ def generate_item(username, domain):
     :domain: is the right-hand side of the email alias
     """
     email = username + "@" + domain
+
     i = {
         "type": "default",
         "title": "TITLE",
@@ -76,9 +64,8 @@ def generate_item(username, domain):
     return i
 
 
-def parse_query():
+def parse_query(query):
     """Split a user-supplied search term into a username and domain."""
-    query = sys.argv[1] if sys.argv[1:] else ""
     query_username = query.split("@")[0] if query.split("@")[0:] else ""
     query_domain = query.split("@")[1] if query.split("@")[1:] else ""
     return query_username, query_domain
@@ -108,33 +95,44 @@ def random_word():
     return word
 
 
-def current_url_base():
+def sitename_from_fqdn(fqdn):
     """Reduce a FQDN to just a single, hopefully-meaningful word."""
-    if _m.current_url_string:
-        return _m.current_url.hostname.split(".")[-2]
+    if fqdn:
+        return urlparse(fqdn).hostname.split(".")[-2]
     return ""
 
 
-query_username, query_domain = parse_query()
-domain = miab.match_best_domain(query_domain)
+def main(*args):
+    """Emit search result items for Alfred based on user input in args."""
+    query = args[0] if args[0:] else ""
+    query_username, query_domain = parse_query(query)
+    domain = miab.match_best_domain(query_domain)
 
-items = []
-if len(query_username) > 0:
-    log(f"Adding item from query_username {query_username}")
-    items.append(generate_item(query_username, domain))
+    items = []
+    if len(query_username) > 0:
+        log(f"Adding item from query_username {query_username}")
+        items.append(generate_item(query_username, domain))
 
-if len(current_url_base()) > 0:
-    log(f"Adding item from url_base {current_url_base}")
-    items.append(generate_item(current_url_base(), domain))
+    sitename = sitename_from_fqdn(os.environ.get("CURRENT_URL", ""))
 
-log("Adding 3 random word items")
-items.append(generate_item(random_word(), domain))
-items.append(generate_item(random_word(), domain))
-items.append(generate_item(random_word(), domain))
+    if len(sitename) > 0:
+        log(f"Adding item from current_url_site ({sitename}")
+        items.append(generate_item(sitename, domain))
 
-log(f"Prepared {len(items)} items for Alfred")
-outdict = {"items": items}
+    log("Adding 3 random word items")
+    items.append(generate_item(random_word(), domain))
+    items.append(generate_item(random_word(), domain))
+    items.append(generate_item(random_word(), domain))
 
-outbuf = json.dumps(outdict)
+    log(f"Prepared {len(items)} items for Alfred")
+    outdict = {"items": items}
 
-sys.stdout.write(outbuf)
+    outbuf = json.dumps(outdict)
+
+    sys.stdout.write(outbuf)
+
+
+if __name__ == "__main__":
+    _, *script_args = sys.argv
+    log("script_args", script_args)
+    main(*script_args)
